@@ -17,6 +17,7 @@ import replaceJsxExpressionContainer from './replaceJsxExpressionContainer';
 import attributeNameExists from './attributeNameExists';
 import createSpreadMapper from './createSpreadMapper';
 import handleSpreadClassName from './handleSpreadClassName';
+import createGenerator from 'generic-names';
 
 const ajv = new Ajv({
   // eslint-disable-next-line id-match
@@ -33,7 +34,7 @@ export default ({
   types: BabelTypes
 }) => {
   const filenameMap = {};
-
+  let classNameGenerate;
   let skip = false;
 
   const setupFileForRuntimeResolution = (path, filename) => {
@@ -141,11 +142,7 @@ export default ({
 
     const filename = getTargetResourcePath(path, stats);
 
-    if (stats.opts.exclude && isFilenameExcluded(filename, stats.opts.exclude)) {
-      return true;
-    }
-
-    return false;
+    return stats.opts.exclude && isFilenameExcluded(filename, stats.opts.exclude)
   };
 
   return {
@@ -178,6 +175,7 @@ export default ({
           filetypes: stats.opts.filetypes || {},
           generateScopedName: stats.opts.generateScopedName
         });
+        filenameMap[filename].styleModuleImportPath[styleImportName] = targetResourcePath
 
         if (stats.opts.webpackHotModuleReloading) {
           addWebpackHotModuleAccept(path);
@@ -247,7 +245,9 @@ export default ({
               destinationName,
               filenameMap[filename].importedHelperIndentifier,
               filenameMap[filename].styleModuleImportMapIdentifier,
-              options
+              options,
+              classNameGenerate,
+              filenameMap[filename].styleModuleImportPath
             );
           }
 
@@ -271,12 +271,15 @@ export default ({
         const filename = stats.file.opts.filename;
 
         filenameMap[filename] = {
-          styleModuleImportMap: {}
+          styleModuleImportMap: {},
+          styleModuleImportPath: {}
         };
 
         if (stats.opts.skip && !attributeNameExists(path, stats)) {
           skip = true;
         }
+
+        classNameGenerate = createGenerator(stats.opts.generateScopedName, { context: stats.opts.context })
       }
     }
   };

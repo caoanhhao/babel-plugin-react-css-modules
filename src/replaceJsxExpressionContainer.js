@@ -51,10 +51,38 @@ export default (
     args.push(createObjectExpression(t, options));
   }
 
-  const styleNameExpression = t.callExpression(
-    t.clone(importedHelperIndentifier),
-    args
-  );
+  let styleNameExpression
+  function customGetClassName(expression) {
+    switch (expression.type) {
+      case 'MemberExpression':
+        let property = expression.property.name ? expression.property.name : expression.property.value
+        return t.memberExpression(
+          t.memberExpression(
+            styleModuleImportMapIdentifier,
+            t.identifier(expression.object.name)
+          ),
+          t.identifier(property))
+      case 'StringLiteral':
+        return expression
+      case 'Identifier':
+        return expression
+      case 'ConditionalExpression':
+        return expression
+      case 'TemplateLiteral':
+        for (let is = 0; is < expression.expressions.length; is++) {
+          expression.expressions[is] = customGetClassName(expression.expressions[is])
+        }
+        return expression
+      default:
+        console.log(expression.type)
+        return t.callExpression(t.clone(importedHelperIndentifier), args)
+    }
+  }
+  if (sourceAttribute.name.name === 'className') {
+    styleNameExpression = customGetClassName(expressionContainerValue.expression)
+  } else {
+    styleNameExpression = t.callExpression(t.clone(importedHelperIndentifier), args)
+  }
 
   if (destinationAttribute) {
     if (isStringLiteral(destinationAttribute.value)) {
